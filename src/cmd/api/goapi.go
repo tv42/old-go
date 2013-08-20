@@ -122,6 +122,8 @@ func main() {
 	}
 	for _, c := range contexts {
 		c.Compiler = build.Default.Compiler
+		c.GOROOT = build.Default.GOROOT
+		c.GOPATH = build.Default.GOPATH
 	}
 
 	var pkgNames []string
@@ -137,7 +139,7 @@ func main() {
 
 	var featureCtx = make(map[string]map[string]bool) // feature -> context name -> true
 	for _, context := range contexts {
-		w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src/pkg"))
+		w := NewWalker(context)
 
 		for _, name := range pkgNames {
 			// - Package "unsafe" contains special signatures requiring
@@ -318,17 +320,15 @@ var fset = token.NewFileSet()
 
 type Walker struct {
 	context  *build.Context
-	root     string
 	scope    []string
 	current  *types.Package
 	features map[string]bool           // set
 	imported map[string]*types.Package // packages already imported
 }
 
-func NewWalker(context *build.Context, root string) *Walker {
+func NewWalker(context *build.Context) *Walker {
 	return &Walker{
 		context:  context,
-		root:     root,
 		features: map[string]bool{},
 		imported: map[string]*types.Package{"unsafe": types.Unsafe},
 	}
@@ -437,12 +437,6 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
 	}
 	w.imported[name] = &importing
 
-	// Determine package files.
-	dir := filepath.Join(w.root, filepath.FromSlash(name))
-	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
-		log.Fatalf("no source in tree for package %q", pkg)
-	}
-
 	context := w.context
 	if context == nil {
 		context = &build.Default
@@ -452,26 +446,26 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
 	// If we've already done an import with the same set
 	// of relevant tags, reuse the result.
 	var key string
-	if tags, ok := pkgTags[dir]; ok {
-		key = tagKey(dir, context, tags)
+	if tags, ok := pkgTags[name]; ok {
+		key = tagKey(name, context, tags)
 		if pkg := pkgCache[key]; pkg != nil {
 			w.imported[name] = pkg
 			return pkg
 		}
 	}
 
-	info, err := context.ImportDir(dir, 0)
+	info, err := context.Import(name, "", 0)
 	if err != nil {
 		if _, nogo := err.(*build.NoGoError); nogo {
 			return
 		}
-		log.Fatalf("pkg %q, dir %q: ScanDir: %v", name, dir, err)
+		log.Fatalf("cannot import pkg %q: ScanDir: %v", name, err)
 	}
 
 	// Save tags list first time we see a directory.
-	if _, ok := pkgTags[dir]; !ok {
-		pkgTags[dir] = info.AllTags
-		key = tagKey(dir, context, info.AllTags)
+	if _, ok := pkgTags[name]; !ok {
+		pkgTags[name] = info.AllTags
+		key = tagKey(name, context, info.AllTags)
 	}
 
 	filenames := append(append([]string{}, info.GoFiles...), info.CgoFiles...)
@@ -493,7 +487,7 @@ func (w *Walker) Import(name string) (pkg *types.Package) {
 	// Parse package files.
 	var files []*ast.File
 	for _, file := range filenames {
-		f, err := w.parseFile(dir, file)
+		f, err := w.parseFile(info.Dir, file)
 		if err != nil {
 			log.Fatalf("error parsing package %s: %s", name, err)
 		}

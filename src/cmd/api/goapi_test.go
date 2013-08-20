@@ -39,7 +39,10 @@ func TestGolden(t *testing.T) {
 		}
 
 		goldenFile := filepath.Join("testdata", "src", "pkg", fi.Name(), "golden.txt")
-		w := NewWalker(nil, "testdata/src/pkg")
+		// copy default context
+		ctxt := build.Default
+		ctxt.GOROOT = "testdata"
+		w := NewWalker(&ctxt)
 		w.export(w.Import(fi.Name()))
 
 		if *updateGolden {
@@ -156,7 +159,7 @@ func BenchmarkAll(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		for _, context := range contexts {
-			w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src/pkg"))
+			w := NewWalker(context)
 			for _, name := range pkgNames {
 				if name != "unsafe" && !strings.HasPrefix(name, "cmd/") {
 					w.export(w.Import(name))
