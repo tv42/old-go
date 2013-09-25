@@ -1500,3 +1500,54 @@ func TestNilDeref(t *testing.T) {
 		}()
 	}
 }
+
+func BenchmarkUint64Uncontended(b *testing.B) {
+	type PaddedUint64 struct {
+		c   uint64
+		pad [128]uint8
+	}
+	const CallsPerSched = 1000
+	procs := runtime.GOMAXPROCS(-1)
+	N := int32(b.N / CallsPerSched)
+	c := make(chan bool, procs)
+	for p := 0; p < procs; p++ {
+		go func() {
+			var count PaddedUint64
+			for AddInt32(&N, -1) >= 0 {
+				runtime.Gosched()
+				for g := 0; g < CallsPerSched; g++ {
+					AddUint64(&count.c, 1)
+				}
+			}
+			c <- true
+		}()
+	}
+	for p := 0; p < procs; p++ {
+		<-c
+	}
+}
+
+func BenchmarkUint64(b *testing.B) {
+	const (
+		CallsPerSched = 1000
+	)
+	procs := runtime.GOMAXPROCS(-1)
+	N := int32(b.N / CallsPerSched)
+	c := make(chan bool, procs)
+	var count uint64
+	for p := 0; p < procs; p++ {
+		go func() {
+			foo := 0
+			for AddInt32(&N, -1) >= 0 {
+				runtime.Gosched()
+				for g := 0; g < CallsPerSched; g++ {
+					AddUint64(&count, 1)
+				}
+			}
+			c <- foo == 42
+		}()
+	}
+	for p := 0; p < procs; p++ {
+		<-c
+	}
+}
