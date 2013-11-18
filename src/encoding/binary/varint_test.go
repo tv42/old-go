@@ -147,6 +147,46 @@ func TestNonCanonicalZero(t *testing.T) {
 	}
 }
 
+func BenchmarkPutFixint16(b *testing.B) {
+	buf := make([]byte, 2)
+	b.SetBytes(2)
+	for i := 0; i < b.N; i++ {
+		for j := uint(0); j < 2; j++ {
+			LittleEndian.PutUint16(buf, 1<<(j*7))
+		}
+	}
+}
+
+func BenchmarkPutFixint32(b *testing.B) {
+	buf := make([]byte, 4)
+	b.SetBytes(4)
+	for i := 0; i < b.N; i++ {
+		for j := uint(0); j < 4; j++ {
+			LittleEndian.PutUint32(buf, 1<<(j*7))
+		}
+	}
+}
+
+func BenchmarkPutFixint64(b *testing.B) {
+	buf := make([]byte, 8)
+	b.SetBytes(8)
+	for i := 0; i < b.N; i++ {
+		for j := uint(0); j < 8; j++ {
+			LittleEndian.PutUint64(buf, 1<<(j*7))
+		}
+	}
+}
+
+func BenchmarkPutUvarint16(b *testing.B) {
+	buf := make([]byte, MaxVarintLen16)
+	b.SetBytes(4)
+	for i := 0; i < b.N; i++ {
+		for j := uint(0); j < MaxVarintLen16; j++ {
+			PutUvarint(buf, 1<<(j*7))
+		}
+	}
+}
+
 func BenchmarkPutUvarint32(b *testing.B) {
 	buf := make([]byte, MaxVarintLen32)
 	b.SetBytes(4)
