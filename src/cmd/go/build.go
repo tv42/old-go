@@ -1085,14 +1085,14 @@ func (b *builder) moveOrCopyFile(a *action, dst, src string, perm os.FileMode) e
 
 	// If we can update the mode and rename to the dst, do it.
 	// Otherwise fall back to standard copy.
-	if err := os.Chmod(src, perm); err == nil {
-		if err := os.Rename(src, dst); err == nil {
-			if buildX {
-				b.showcmd("", "mv %s %s", src, dst)
-			}
-			return nil
-		}
-	}
+	// if err := os.Chmod(src, perm); err == nil {
+	// 	if err := os.Rename(src, dst); err == nil {
+	// 		if buildX {
+	// 			b.showcmd("", "mv %s %s", src, dst)
+	// 		}
+	// 		return nil
+	// 	}
+	// }
 
 	return b.copyFile(a, dst, src, perm)
 }
