@@ -235,6 +235,21 @@ chomp(Buf *b)
 		b->len--;
 }
 
+static bool
+ver_git(Buf *ver) {
+	Buf vcsdir;
+
+	binit(&vcsdir);
+
+	bpathf(&vcsdir, "%s/.git", goroot);
+	if(isdir(bstr(&vcsdir))) {
+		run(ver, goroot, CheckExit, "git", "describe", "--tags", "--dirty=+", nil);
+		chomp(ver);
+		return 1;
+	}
+	return 0;
+}
+
 
 // findgoversion determines the Go version to use in the version string.
 static char*
@@ -273,6 +288,10 @@ findgoversion(void)
 		readfile(&b, bstr(&path));
 		chomp(&b);
 		goto done;
+	}
+
+	if(ver_git(&b)) {
+		goto have;
 	}
 
 	// Otherwise, use Mercurial.
@@ -319,6 +338,7 @@ findgoversion(void)
 	if(bmore.len > 0)
 		bwriteb(&b, &bmore);
 
+have:
 	// Cache version.
 	writefile(&b, bstr(&path), 0);
 
